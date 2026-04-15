@@ -44,5 +44,53 @@
         }
       ]
     }
+  },
+  "actions": {
+    "pending": {
+      "endpoint": "GET /api/actions/pending",
+      "response": {
+        "actions": [
+          {
+            "id": "string",
+            "trace_id": "string",
+            "action": "string",
+            "risk_level": "string",
+            "reason": "string",
+            "status": "pending",
+            "created_at": "string"
+          }
+        ]
+      }
+    },
+    "approve": {
+      "endpoint": "POST /api/actions/{action_id}/approve",
+      "request": {
+        "decided_by": "string"
+      },
+      "response": {
+        "action_id": "string",
+        "status": "executed",
+        "execution": {
+          "action_id": "string",
+          "trace_id": "string",
+          "action": "string",
+          "status": "mock_executed",
+          "tool": "string",
+          "message": "string"
+        }
+      }
+    },
+    "reject": {
+      "endpoint": "POST /api/actions/{action_id}/reject",
+      "request": {
+        "decided_by": "string",
+        "reason": "string"
+      },
+      "response": {
+        "action_id": "string",
+        "status": "rejected",
+        "rejection_reason": "string"
+      }
+    }
   }
 }

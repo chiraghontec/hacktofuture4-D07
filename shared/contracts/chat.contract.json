@@ -1,0 +1,28 @@
+{
+  "version": "0.1.0",
+  "endpoint": "POST /api/chat",
+  "request": {
+    "message": "string",
+    "session_id": "string"
+  },
+  "response": {
+    "answer": "string",
+    "trace_id": "string",
+    "needs_approval": "boolean"
+  },
+  "stream": {
+    "endpoint": "GET /api/chat/stream?trace_id=<id>",
+    "event": "trace_step",
+    "payload": {
+      "step": "string",
+      "agent": "string",
+      "observation": "string",
+      "sources": [
+        {
+          "title": "string",
+          "path": "string"
+        }
+      ]
+    }
+  }
+}

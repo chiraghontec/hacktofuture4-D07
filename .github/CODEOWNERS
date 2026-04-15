@@ -1,0 +1,8 @@
+# Replace these handles with your real GitHub usernames.
+# Example: @chiragds @teammate
+
+/frontend/ @engineer-frontend
+/backend/ @engineer-backend
+/shared/contracts/ @engineer-frontend @engineer-backend
+/docs/ways-of-working/ @engineer-frontend @engineer-backend
+/infra/ @engineer-backend

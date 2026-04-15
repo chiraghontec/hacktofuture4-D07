@@ -1,86 +1,96 @@
-# Fun-Tastic
+# UniOps - Small OS for Operations
 
-Welcome to your official HackToFuture 4 repository.
+Monorepo scaffold for a 24-hour hackathon build with 2 engineers working in parallel.
 
-This repository template will be used for development, tracking progress, and final submission of your project. Ensure that all work is committed here within the allowed hackathon duration.
+## Monorepo Structure
 
----
+```text
+.
+├── frontend/                # Engineer A ownership
+│   ├── app/
+│   ├── components/
+│   ├── lib/
+│   └── tests/
+├── backend/                 # Engineer B ownership
+│   ├── app/
+│   │   └── api/routes/
+│   ├── src/
+│   │   ├── controller/
+│   │   ├── swarms/
+│   │   ├── gates/
+│   │   ├── memory/
+│   │   └── tools/
+│   └── tests/
+├── shared/
+│   └── contracts/           # Shared integration boundary
+├── data/
+│   ├── confluence/
+│   ├── runbooks/
+│   ├── incidents/
+│   ├── github/
+│   └── slack/
+├── infra/
+│   └── docker-compose.yml
+├── scripts/
+└── docs/
+	├── UniOps PRD.md
+	└── ways-of-working/
+```
 
-### Instructions for the teams:
+## Conflict Prevention Model (2 Engineers)
 
-- Fork the Repository and name the forked repo in this convention: hacktofuture4-team_id (for eg: hacktofuture4-A01)
+1. Strict ownership boundary:
+   - Engineer A -> `frontend/**`
+   - Engineer B -> `backend/**`
+2. Shared zone (`shared/contracts/**`, `infra/**`, docs) uses short lock-based edits.
+3. Contract-first integration: update shared contract before implementation changes.
+4. Merge cadence: sync every 2 hours, small PRs, no direct commits to `main`.
 
----
+See:
+- `docs/ways-of-working/OWNERSHIP.md`
+- `docs/ways-of-working/BRANCHING.md`
+- `docs/ways-of-working/INTEGRATION_RULES.md`
+- `docs/ways-of-working/TASK_SPLIT_24H.md`
 
-## Rules
+## Quick Start
 
-- Work must be done ONLY in the forked repository
-- Only Four Contributors are allowed.
-- After 36 hours, Please make PR to the Main Repository. A Form will be sent to fill the required information.
-- Do not copy code from other teams
-- All commits must be from individual GitHub accounts
-- Please provide meaningful commits for tracking.
-- Do not share your repository with other teams
-- Final submission must be pushed before the deadline
-- Any violation may lead to disqualification
-
----
-
-# The Final README Template 
-
-## Problem Statement / Idea
-
-Clearly describe the problem you are solving.
-
-- What is the problem?
-- Why is it important?
-- Who are the target users?
-
----
-
-## Proposed Solution
-
-Explain your approach:
-
-- What are you building?
-- How does it solve the problem?
-- What makes your solution unique?
-
----
-
-## Features
-
-List the core features of your project:
-
-- Feature 1
-- Feature 2
-- Feature 3
-
----
-
-## Tech Stack
-
-Mention all technologies used:
-
-- Frontend:
-- Backend:
-- Database:
-- APIs / Services:
-- Tools / Libraries:
-
----
-
-## Project Setup Instructions
-
-Provide clear steps to run your project:
+### Option A: Docker Compose
 
 ```bash
-# Clone the repository
-git clone <repo-link>
-
-# Install dependencies
-...
-
-# Run the project
-...
+make up
 ```
+
+- Frontend: http://localhost:3000
+- Backend: http://localhost:8000/health
+
+### Option B: Run separately
+
+Frontend:
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Backend:
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+## Current MVP Scaffold
+
+- FastAPI app with `/health` and `POST /api/chat`
+- Next.js app shell page
+- Shared chat contract at `shared/contracts/chat.contract.json`
+- Sample data folders for Confluence, runbooks, incidents, GitHub, and Slack
+
+## Next Build Targets
+
+1. Add backend SSE endpoint for live reasoning trace.
+2. Connect frontend chat + trace panel to API contract.
+3. Implement native permission gate approval queue.
+4. Add ingestion pipeline for markdown and simulated incident data.

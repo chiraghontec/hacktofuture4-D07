@@ -1,0 +1,7 @@
+{
+  "id": "INC-2026-04-08-001",
+  "service": "service-x",
+  "severity": "SEV-2",
+  "summary": "Redis latency spike after deployment",
+  "status": "resolved"
+}

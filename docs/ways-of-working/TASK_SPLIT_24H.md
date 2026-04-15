@@ -1,5 +1,8 @@
 # 24-Hour Execution Split (2 Engineers)
 
+For backend-first execution with equal split by skill profile, use:
+- docs/ways-of-working/BACKEND_SPLIT_24H.md
+
 ## Hour 0-2
 - Engineer A: Frontend setup, chat shell, trace panel layout
 - Engineer B: FastAPI setup, /health, /api/chat stub

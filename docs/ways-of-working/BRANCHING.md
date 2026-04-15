@@ -2,15 +2,24 @@
 
 ## Branch naming
 - `feat/frontend-<task>`
-- `feat/backend-<task>`
+- `feat/backend-core-<task>`
+- `feat/backend-systems-<task>`
+- `feat/backend-<task>` (legacy fallback)
 - `chore/shared-<task>`
 
 ## Rules
 1. No direct commits to `main`.
 2. Engineer A only opens `feat/frontend-*` unless working on a shared lock.
-3. Engineer B only opens `feat/backend-*` unless working on a shared lock.
-4. Shared changes must be isolated in `chore/shared-*`.
-5. Keep PRs small: target under 250 lines changed where possible.
+3. Backend Engineer 1 (core intelligence) uses `feat/backend-core-*`.
+4. Backend Engineer 2 (systems and production) uses `feat/backend-systems-*`.
+5. `feat/backend-*` is legacy and only enforces broad backend/frontend boundaries.
+6. Shared changes must be isolated in `chore/shared-*`.
+7. Keep PRs small: target under 250 lines changed where possible.
+
+## CI enforcement
+- Workflow: `.github/workflows/ownership-boundary-check.yml`
+- Script: `scripts/check-boundaries.sh`
+- The check fails PRs when branch changes violate ownership lane rules.
 
 ## Merge cadence for 24h sprint
 - Sync checkpoint every 2 hours:

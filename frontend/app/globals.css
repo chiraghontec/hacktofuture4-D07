@@ -197,3 +197,97 @@ p {
   display: block;
   color: #64748b;
 }
+
+.queue-panel {
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+  margin-top: 1rem;
+}
+
+.queue-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.7rem;
+}
+
+.queue-header h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.queue-header button {
+  border: 1px solid #0369a1;
+  background: #ffffff;
+  color: #0369a1;
+  border-radius: 8px;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.queue-empty {
+  color: #64748b;
+}
+
+.queue-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.queue-list > li {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.7rem;
+  background: #ffffff;
+}
+
+.queue-meta {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+}
+
+.queue-meta span {
+  text-transform: uppercase;
+  font-size: 0.78rem;
+  color: #92400e;
+  background: #fef3c7;
+  border-radius: 999px;
+  padding: 0.12rem 0.45rem;
+}
+
+.queue-trace {
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+.queue-controls {
+  margin-top: 0.55rem;
+  display: flex;
+  gap: 0.45rem;
+}
+
+.queue-controls button {
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
+}
+
+.queue-controls button:first-child {
+  border-color: #15803d;
+  color: #166534;
+  background: #dcfce7;
+}
+
+.queue-controls button:last-child {
+  border-color: #b91c1c;
+  color: #991b1b;
+  background: #fee2e2;
+}

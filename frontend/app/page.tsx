@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 
+import { useApprovalQueue } from "../lib/useApprovalQueue";
 import { useChat } from "../lib/useChat";
 import { useTraceStream } from "../lib/useTraceStream";
 
@@ -12,6 +13,15 @@ export default function HomePage() {
   const [needsApproval, setNeedsApproval] = useState(false);
 
   const { sendMessage, loading, error } = useChat();
+  const {
+    actions,
+    loading: queueLoading,
+    error: queueError,
+    mutatingActionId,
+    reloadPending,
+    approveAction,
+    rejectAction,
+  } = useApprovalQueue();
   const { steps, isStreaming, streamError } = useTraceStream(traceId);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -30,6 +40,7 @@ export default function HomePage() {
     setTraceId(result.trace_id);
     setNeedsApproval(result.needs_approval);
     setMessage("");
+    await reloadPending();
   };
 
   return (
@@ -57,6 +68,7 @@ export default function HomePage() {
 
         {error ? <p className="error">{error}</p> : null}
         {streamError ? <p className="error">{streamError}</p> : null}
+        {queueError ? <p className="error">{queueError}</p> : null}
 
         {answer ? (
           <div className="answer-panel">
@@ -98,6 +110,43 @@ export default function HomePage() {
                   ) : null}
                 </li>
               ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="queue-panel">
+          <div className="queue-header">
+            <h2>Pending Approvals</h2>
+            <button type="button" onClick={() => void reloadPending()} disabled={queueLoading}>
+              {queueLoading ? "Refreshing..." : "Refresh"}
+            </button>
+          </div>
+
+          {actions.length === 0 ? (
+            <p className="queue-empty">No pending actions.</p>
+          ) : (
+            <ul className="queue-list">
+              {actions.map((action) => {
+                const busy = mutatingActionId === action.id;
+                return (
+                  <li key={action.id}>
+                    <div className="queue-meta">
+                      <strong>{action.action}</strong>
+                      <span>{action.risk_level}</span>
+                    </div>
+                    <p>{action.reason}</p>
+                    <p className="queue-trace">Trace: {action.trace_id}</p>
+                    <div className="queue-controls">
+                      <button type="button" disabled={busy} onClick={() => void approveAction(action.id)}>
+                        {busy ? "Working..." : "Approve"}
+                      </button>
+                      <button type="button" disabled={busy} onClick={() => void rejectAction(action.id)}>
+                        Reject
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

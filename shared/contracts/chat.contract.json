@@ -1,14 +1,19 @@
 {
-  "version": "0.1.0",
+  "version": "0.1.1",
   "endpoint": "POST /api/chat",
   "request": {
     "message": "string",
-    "session_id": "string"
+    "session_id": "uuid-string"
   },
   "response": {
     "answer": "string",
     "trace_id": "string",
     "needs_approval": "boolean"
+  },
+  "error": {
+    "error": "string",
+    "trace_id": "string|null",
+    "status_code": "number"
   },
   "stream": {
     "endpoint": "GET /api/chat/stream?trace_id=<id>",
@@ -23,6 +28,14 @@
           "path": "string"
         }
       ]
+    },
+    "stub_behavior": {
+      "status_code": 501,
+      "response": {
+        "error": "stream_not_implemented",
+        "trace_id": "string",
+        "status_code": 501
+      }
     }
   }
 }

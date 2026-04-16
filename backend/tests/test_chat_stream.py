@@ -35,6 +35,8 @@ def test_transcript_endpoint_returns_persisted_trace() -> None:
     assert payload["trace_id"] == trace_id
     assert isinstance(payload["steps"], list)
     assert len(payload["steps"]) == 3
+    assert isinstance(payload["dedup_summary"], dict)
+    assert "deduped_count" in payload["dedup_summary"]
 
 
 def test_stream_endpoint_emits_contract_payload_shape() -> None:

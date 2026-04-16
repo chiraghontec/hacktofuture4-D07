@@ -44,6 +44,7 @@ def test_chat_accepts_incident_report_only() -> None:
     assert payload["trace_id"].startswith("trace-")
     assert isinstance(payload["answer"], str)
     assert isinstance(payload["needs_approval"], bool)
+    assert isinstance(payload["dedup_summary"], dict)
 
 
 def test_chat_requires_message_or_incident_report() -> None:
@@ -71,6 +72,7 @@ def test_chat_prefers_incident_report_over_message() -> None:
             needs_approval=False,
             suggested_action="summarize findings",
             trace=[],
+            dedup_summary={"deduped_count": 0},
         )
 
     with patch.object(chat_route.kernel, "handle_query", side_effect=fake_handle_query):
@@ -102,3 +104,4 @@ def test_chat_message_mode_still_supported() -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["trace_id"].startswith("trace-")
+    assert isinstance(payload["dedup_summary"], dict)

@@ -49,6 +49,7 @@ class ChatResponse(BaseModel):
     answer: str
     trace_id: str
     needs_approval: bool
+    dedup_summary: dict[str, Any]
 
 
 def _stable_json(items: list[Any]) -> str:
@@ -90,6 +91,7 @@ def chat(payload: ChatRequest) -> ChatResponse:
         answer=result.answer,
         trace_id=result.trace_id,
         needs_approval=result.needs_approval,
+        dedup_summary=result.dedup_summary,
     )
 
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from uuid import uuid4
@@ -27,6 +28,7 @@ class ControllerResult:
     needs_approval: bool
     suggested_action: str
     trace: list[dict]
+    dedup_summary: dict[str, Any]
 
 
 class ControllerKernel:
@@ -49,6 +51,8 @@ class ControllerKernel:
     def handle_query(self, query: str, session_id: str) -> ControllerResult:
         trace_id = f"trace-{uuid4().hex[:8]}"
         trace: list[TraceStep] = []
+        self.memory.run_dedup_pass()
+        dedup_summary = self.memory.summary()["dedup_summary"]
 
         retrieval = self.retrieval_swarm.run(query=query)
         trace.append(
@@ -81,7 +85,7 @@ class ControllerKernel:
         )
 
         trace_payload = [asdict(item) for item in trace]
-        self.memory.persist_transcript(trace_id=trace_id, steps=trace_payload)
+        self.memory.persist_transcript(trace_id=trace_id, steps=trace_payload, dedup_summary=dedup_summary)
 
         return ControllerResult(
             answer=reasoning["answer"],
@@ -89,4 +93,5 @@ class ControllerKernel:
             needs_approval=execution["requires_human_approval"],
             suggested_action=reasoning["suggested_action"],
             trace=trace_payload,
+            dedup_summary=dedup_summary,
         )

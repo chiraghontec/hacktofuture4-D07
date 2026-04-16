@@ -16,6 +16,8 @@ def test_chat_endpoint_uses_controller_kernel() -> None:
     assert payload["trace_id"].startswith("trace-")
     assert isinstance(payload["answer"], str)
     assert isinstance(payload["needs_approval"], bool)
+    assert isinstance(payload["dedup_summary"], dict)
+    assert "deduped_count" in payload["dedup_summary"]
 
 
 def test_controller_marks_high_risk_actions_for_approval() -> None:
@@ -25,3 +27,4 @@ def test_controller_marks_high_risk_actions_for_approval() -> None:
     assert result.needs_approval is True
     assert result.suggested_action
     assert len(result.trace) == 3
+    assert isinstance(result.dedup_summary, dict)

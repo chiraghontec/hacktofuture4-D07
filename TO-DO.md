@@ -24,9 +24,7 @@
 - [x] Engineer 1: Tune reasoning quality hints for source prioritization (non-breaking).
 
 ## In Progress
-- [ ] Core MVP golden flow implementation: IRIS + Confluence end-to-end integration on `main` baseline.
-- [ ] HITL completion path: pending approval -> approve/reject -> executed/rejected audit trace.
-- [ ] Live demo runbook finalization: standardize validated IDs (`Confluence: 65868,65898`, `IRIS case_id: 1`) across scripted and frontend flows.
+- [ ] Tool registry adapters live credential validation on `feat/backend-systems-tool-registry-adapters`: pending valid GitHub/Jira/Slack target configuration (`GITHUB_REPOSITORY`, `GITHUB_ISSUE_NUMBER`, Jira issue key in action text) for full approve->executed live proof.
 
 ## Done
 - [x] Established branch split strategy and pushed baseline/core changes to `main`.
@@ -55,6 +53,23 @@
 - [x] Manual E2E verification script added (`scripts/e2e_confluence_flow.sh`) for live backend runs.
 - [x] Phase 2 frontend demo wiring shipped (`frontend/app/page.tsx`, `frontend/lib/chat-api.ts`): ingestion controls, chat submit, SSE trace rendering, approval actions, transcript refresh.
 - [x] Credential setup completed for live connectors: `.env` now has working Confluence and IRIS integration keys (IRIS key sourced from local `iris-web` DB admin user record).
+- [x] Tool registry adapter stack implemented on `feat/backend-systems-tool-registry-adapters`: dynamic `ToolRegistry`, registry-backed `ToolExecutor`, strict real adapter modules for GitHub/Slack/Jira/Confluence, and approval-route execution status propagation.
+- [x] Registry adapter test coverage added (`backend/tests/test_tool_registry_adapters.py`) and approval/E2E tests updated for deterministic registry-path validation.
+- [x] Tool registry adapters refactored to read-only fetch behavior for live validation: GitHub issue fetch, Slack channel context fetch, Jira issue fetch, and Confluence page fetch (no create/comment side effects).
+- [x] Registry execution env template aligned to fetch-only variables in `.env.example` (`SLACK_CONTEXT_LIMIT` added; write templates removed).
+- [x] Slack thread incident fetch implemented for approval execution path (`slack.fetch_thread_messages`) with env-driven target selection (`SLACK_CHANNEL_ID`, `SLACK_THREAD_TS`).
+- [x] Jira issue selection switched to action-text parsing (`PROJECT-123`) with fail-fast validation when issue key is missing or malformed.
+- [x] HITL completion path shipped end-to-end: approve/reject now persist final transcript state (`executed`/`rejected`) based on execution result.
+- [x] IRIS create-case API spike documented from bundled DFIR-IRIS source (`docs/ways-of-working/IRIS_INCIDENT_CREATION_API.md`).
+- [x] Real IRIS incident creation implemented (`backend/src/adapters/iris_client.py#create_incident`) with explicit API endpoint (`POST /api/incidents/create`) and runtime memory ingestion of normalized `incident_report`.
+- [x] Approval execution path extended with mutation tool `iris.create_incident` in registry-backed executor (`backend/src/tools/executor.py`).
+- [x] Incident creation test coverage added (`backend/tests/test_ingestion.py` for success/failure path and `backend/tests/test_tool_registry_adapters.py` for executor mapping).
+- [x] Executor keyword matcher hardened for pull-request token detection (`\bpr\b`) to avoid false positives (for example, "prod").
+- [x] Runtime OpenAPI validation confirms new endpoint exposure (`/api/incidents/create` present in backend `openapi.json`).
+- [x] Core MVP golden flow implemented on `main`: IRIS + Confluence ingest, chat trace, approval transition, transcript audit lifecycle available end-to-end.
+- [x] Live demo runbook defaults standardized across scripted and frontend flows (`Confluence: 65868,65898`, `IRIS case_id: 1`).
+- [x] Scripted demo flow updated to include both Confluence and IRIS ingest using validated defaults (`scripts/e2e_confluence_flow.sh`).
+- [x] IRIS incident creation live mutation validation passed for explicit endpoint (`POST /api/incidents/create`) and approval tool path execution (`iris.create_incident` via `ToolExecutor`).
 
 ## Risks
 - SSE consumers can see parse errors if event payload shape changes unexpectedly.
@@ -84,7 +99,9 @@
 - Backend build scope for this slice:
 	- Extend chat request to support dual input (`message` + `incident_report`) with precedence validation.
 	- Add `/api/ingest/confluence` and `/api/ingest/iris` for source sync.
+	- Add explicit IRIS incident creation endpoint `/api/incidents/create` (real DFIR-IRIS create flow).
 	- Add approval decision endpoint for trace-bound actions (`approve` / `reject`).
+	- Extend approval executor/tool path with `iris.create_incident` for mutation after human approval.
 	- Replace pending-only execution stop with full decision transition and recorded execution outcome.
 - Frontend build scope for this slice:
 	- Replace static shell with functional chat workflow.
@@ -138,3 +155,24 @@
 - 2026-04-16: Confluence credential validity confirmed by page discovery probe (`GET /rest/api/content?limit=5` 200); validated page IDs captured (`65868`, `65898`) and scripted demo run passed with `ingested_count=2`.
 - 2026-04-16: IRIS auth issue resolved from 401 to valid auth by replacing placeholder password with actual admin API key token (retrieved from local `iris_db` user record); IRIS list endpoint probe returned case `1` (`#1 - Initial Demo`) and ingestion succeeded (`POST /api/ingest/iris?case_id=1` => 200).
 - 2026-04-16: Frontend live-demo verification completed at `http://localhost:3000` with validated defaults (`Confluence page IDs: 65868,65898`, `IRIS case ID: 1`): Confluence ingest status `2 ok / 0 failed`, IRIS ingest status `Case 1`, approval flow executed, transcript final status `executed`.
+- 2026-04-16: Started feature branch `feat/backend-systems-tool-registry-adapters` for registry-backed real tool execution adapters (GitHub issue comment, Slack channel message, Jira issue comment, Confluence read-only page fetch).
+- 2026-04-16: Registry adapter implementation completed on feature branch (`backend/src/tools/registry.py`, `backend/src/tools/executor.py`, `backend/src/tools/github_adapter.py`, `backend/src/tools/slack_adapter.py`, `backend/src/tools/jira_adapter.py`, `backend/src/tools/confluence_tool_adapter.py`) with strict env-driven fail-fast behavior.
+- 2026-04-16: Registry-focused and regression tests passed (`.venv/bin/python -m pytest -q tests/test_tool_registry_adapters.py tests/test_approvals.py tests/test_e2e_ingest_chat_approve.py`: `8 passed`).
+- 2026-04-16: Full backend suite passed after registry adapter integration (`.venv/bin/python -m pytest -q`: `27 passed`).
+- 2026-04-16: Frontend compatibility smoke check passed post-integration (`cd frontend && npm run build`).
+- 2026-04-16: Manual live validation executed on registry branch (`ingest confluence` 200, `ingest iris` 200, `chat` 200, `approvals` 200). Approval execution failed fast as designed with invalid GitHub credentials (`401`), transcript persisted `final_status=rejected` with `execution_result.status=failed` and tool-level details.
+- 2026-04-16: Read-only execution pivot implemented for registry adapters (`backend/src/tools/executor.py`, `backend/src/tools/github_adapter.py`, `backend/src/tools/slack_adapter.py`, `backend/src/tools/jira_adapter.py`) with fetch-only tool names (`github.fetch_issue`, `slack.fetch_channel_messages`, `jira.fetch_issue`, `confluence.fetch_page`).
+- 2026-04-16: Read-only pivot regression tests passed (`.venv/bin/python -m pytest -q tests/test_tool_registry_adapters.py tests/test_approvals.py tests/test_e2e_ingest_chat_approve.py`: `8 passed`).
+- 2026-04-16: Full backend suite revalidated after read-only pivot (`.venv/bin/python -m pytest -q`: `27 passed`).
+- 2026-04-16: Slack thread + Jira incident-fetch setup implemented (`backend/src/tools/slack_adapter.py`, `backend/src/tools/jira_adapter.py`, `backend/src/tools/executor.py`) with new runtime behavior: Slack thread replies use `SLACK_THREAD_TS`, and Jira issue key is extracted from approved action text.
+- 2026-04-16: Extended adapter regression coverage passed after implementation (`.venv/bin/python -m pytest -q tests/test_tool_registry_adapters.py tests/test_approvals.py tests/test_e2e_ingest_chat_approve.py`: `10 passed`).
+- 2026-04-16: Full backend suite passed after Slack/Jira fetch setup (`.venv/bin/python -m pytest -q`: `29 passed`).
+- 2026-04-16: IRIS create-case contract spike completed from bundled DFIR-IRIS source (`.vendor/iris-web`): confirmed create endpoint `POST /manage/cases/add` and required fields (`case_name`, `case_description`, `case_customer`, `case_soc_id`).
+- 2026-04-16: Real incident creation slice implemented in backend: `IrisClient.create_incident`, explicit API endpoint `POST /api/incidents/create`, shared contract update (`shared/contracts/chat.contract.json`), and setup docs update (`docs/ways-of-working/IRIS_INCIDENT_SETUP.md`).
+- 2026-04-16: Approval execution path now supports mutation tool `iris.create_incident`; matching logic updated with pull-request token word-boundary (`\bpr\b`) to avoid false-positive GitHub dispatch on words like "prod".
+- 2026-04-16: Incident creation regression coverage added (`backend/tests/test_ingestion.py`, `backend/tests/test_tool_registry_adapters.py`); full backend suite passed (`/Volumes/LocalDrive/hacktofuture4-D07/backend/.venv/bin/python -m pytest -q`: `32 passed`).
+- 2026-04-16: Runtime endpoint exposure verified through OpenAPI (`http://127.0.0.1:8000/openapi.json` includes `/api/incidents/create`: `True`).
+- 2026-04-16: Live explicit incident creation validated against running backend/IRIS (`POST /api/incidents/create` returned `source=iris`, `case_id=2`).
+- 2026-04-16: Approval tool-path mutation validated live by executing `ToolExecutor().execute('Create incident ...')`, returning `status=executed`, `tool=iris.create_incident`, created case id (`3`).
+- 2026-04-16: Scripted demo flow standardized and revalidated (`./scripts/e2e_confluence_flow.sh`): Confluence ingest `2/0`, IRIS ingest case `1`, SSE `3 events`, transcript persisted `final_status=rejected` due missing Jira issue key in approved action text.
+- 2026-04-16: Live tool-registry credential/target validation remains open: rollback approval path failed with `No Jira issue key found in approved action text (expected format PROJECT-123)` and direct registry action with GitHub path showed `GitHub issue fetch failed with status 404` due invalid repository target.

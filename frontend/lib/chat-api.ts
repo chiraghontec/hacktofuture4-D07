@@ -44,6 +44,82 @@ export type IngestConfluenceResponse = {
   results: IngestConfluenceResult[];
 };
 
+export type GitHubIssueRef = {
+  repository: string;
+  issue_number: number;
+};
+
+export type IngestGitHubResult = {
+  repository: string;
+  issue_number: number;
+  status: "ingested" | "failed";
+  title: string | null;
+  url: string | null;
+  error: string | null;
+};
+
+export type IngestGitHubResponse = {
+  ingested_count: number;
+  failed_count: number;
+  source: "github";
+  results: IngestGitHubResult[];
+};
+
+export type IngestJiraResult = {
+  issue_key: string;
+  status: "ingested" | "failed";
+  summary: string | null;
+  url: string | null;
+  error: string | null;
+};
+
+export type IngestJiraResponse = {
+  ingested_count: number;
+  failed_count: number;
+  source: "jira";
+  results: IngestJiraResult[];
+};
+
+export type SlackChannelRef = {
+  channel_id: string;
+  limit?: number;
+};
+
+export type SlackThreadRef = {
+  channel_id: string;
+  thread_ts: string;
+  limit?: number;
+};
+
+export type IngestSlackChannelResult = {
+  channel_id: string;
+  status: "ingested" | "failed";
+  message_count: number | null;
+  error: string | null;
+};
+
+export type IngestSlackChannelsResponse = {
+  ingested_count: number;
+  failed_count: number;
+  source: "slack";
+  results: IngestSlackChannelResult[];
+};
+
+export type IngestSlackThreadResult = {
+  channel_id: string;
+  thread_ts: string;
+  status: "ingested" | "failed";
+  message_count: number | null;
+  error: string | null;
+};
+
+export type IngestSlackThreadsResponse = {
+  ingested_count: number;
+  failed_count: number;
+  source: "slack";
+  results: IngestSlackThreadResult[];
+};
+
 export type IncidentReport = {
   source_system: string;
   case_id?: string | null;
@@ -365,6 +441,62 @@ export async function ingestIris(caseId: string): Promise<IngestIrisResponse> {
 
   const parsedBody = await parseJson(response);
   return assertSuccess<IngestIrisResponse>(response, parsedBody);
+}
+
+export async function ingestGithub(issueRefs: GitHubIssueRef[]): Promise<IngestGitHubResponse> {
+  const response = await fetch(`${backendBaseUrl}/api/ingest/github`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ issue_refs: issueRefs }),
+    cache: "no-store",
+  });
+
+  const parsedBody = await parseJson(response);
+  return assertSuccess<IngestGitHubResponse>(response, parsedBody);
+}
+
+export async function ingestJira(issueKeys: string[]): Promise<IngestJiraResponse> {
+  const response = await fetch(`${backendBaseUrl}/api/ingest/jira`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ issue_keys: issueKeys }),
+    cache: "no-store",
+  });
+
+  const parsedBody = await parseJson(response);
+  return assertSuccess<IngestJiraResponse>(response, parsedBody);
+}
+
+export async function ingestSlackChannels(channels: SlackChannelRef[]): Promise<IngestSlackChannelsResponse> {
+  const response = await fetch(`${backendBaseUrl}/api/ingest/slack/channels`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ channels }),
+    cache: "no-store",
+  });
+
+  const parsedBody = await parseJson(response);
+  return assertSuccess<IngestSlackChannelsResponse>(response, parsedBody);
+}
+
+export async function ingestSlackThreads(threads: SlackThreadRef[]): Promise<IngestSlackThreadsResponse> {
+  const response = await fetch(`${backendBaseUrl}/api/ingest/slack/threads`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ threads }),
+    cache: "no-store",
+  });
+
+  const parsedBody = await parseJson(response);
+  return assertSuccess<IngestSlackThreadsResponse>(response, parsedBody);
 }
 
 export async function submitApproval(

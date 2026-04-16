@@ -46,6 +46,27 @@
         "incident_report": "IncidentReport"
       }
     },
+    "incidents_create": {
+      "endpoint": "POST /api/incidents/create",
+      "request": {
+        "case_name": "string (required)",
+        "case_description": "string (required)",
+        "severity": "string (optional, default=medium)",
+        "tags": [
+          "string"
+        ],
+        "case_customer": "number (optional, default=1)",
+        "case_soc_id": "string (optional)",
+        "classification_id": "number|null (optional)",
+        "case_template_id": "string|null (optional)",
+        "custom_attributes": "object|null (optional)"
+      },
+      "response": {
+        "source": "iris",
+        "case_id": "string",
+        "incident_report": "IncidentReport"
+      }
+    },
     "confluence": {
       "endpoint": "POST /api/ingest/confluence",
       "request": {
@@ -62,6 +83,104 @@
             "page_id": "string",
             "status": "ingested|failed",
             "title": "string|null",
+            "error": "string|null"
+          }
+        ]
+      }
+    },
+    "github": {
+      "endpoint": "POST /api/ingest/github",
+      "request": {
+        "issue_refs": [
+          {
+            "repository": "string (owner/repo)",
+            "issue_number": "number"
+          }
+        ]
+      },
+      "response": {
+        "ingested_count": "number",
+        "failed_count": "number",
+        "source": "github",
+        "results": [
+          {
+            "repository": "string",
+            "issue_number": "number",
+            "status": "ingested|failed",
+            "title": "string|null",
+            "url": "string|null",
+            "error": "string|null"
+          }
+        ]
+      }
+    },
+    "jira": {
+      "endpoint": "POST /api/ingest/jira",
+      "request": {
+        "issue_keys": [
+          "string"
+        ]
+      },
+      "response": {
+        "ingested_count": "number",
+        "failed_count": "number",
+        "source": "jira",
+        "results": [
+          {
+            "issue_key": "string",
+            "status": "ingested|failed",
+            "summary": "string|null",
+            "url": "string|null",
+            "error": "string|null"
+          }
+        ]
+      }
+    },
+    "slack_channels": {
+      "endpoint": "POST /api/ingest/slack/channels",
+      "request": {
+        "channels": [
+          {
+            "channel_id": "string",
+            "limit": "number (optional, default=20)"
+          }
+        ]
+      },
+      "response": {
+        "ingested_count": "number",
+        "failed_count": "number",
+        "source": "slack",
+        "results": [
+          {
+            "channel_id": "string",
+            "status": "ingested|failed",
+            "message_count": "number|null",
+            "error": "string|null"
+          }
+        ]
+      }
+    },
+    "slack_threads": {
+      "endpoint": "POST /api/ingest/slack/threads",
+      "request": {
+        "threads": [
+          {
+            "channel_id": "string",
+            "thread_ts": "string",
+            "limit": "number (optional, default=20)"
+          }
+        ]
+      },
+      "response": {
+        "ingested_count": "number",
+        "failed_count": "number",
+        "source": "slack",
+        "results": [
+          {
+            "channel_id": "string",
+            "thread_ts": "string",
+            "status": "ingested|failed",
+            "message_count": "number|null",
             "error": "string|null"
           }
         ]

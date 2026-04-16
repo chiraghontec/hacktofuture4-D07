@@ -94,3 +94,15 @@ uvicorn app.main:app --reload --port 8000
 2. Connect frontend chat + trace panel to API contract.
 3. Implement native permission gate approval queue.
 4. Add ingestion pipeline for markdown and simulated incident data.
+
+## IRIS Data Parity Setup
+
+Use repository source data to bootstrap the same incident-resolution context in IRIS:
+
+```bash
+python3 scripts/iris_setup_from_data.py --project-key SERVICE-X
+```
+
+Then follow:
+
+- `docs/ways-of-working/IRIS_INCIDENT_SETUP.md`

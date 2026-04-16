@@ -1,0 +1,15 @@
+{
+  "project_key": "SERVICE-X",
+  "source": "uniops-data-bundle",
+  "external_incident_id": "INC-2026-04-08-001",
+  "service": "service-x",
+  "severity": "SEV-2",
+  "summary": "Redis latency spike after deployment",
+  "status": "resolved",
+  "tags": [
+    "redis",
+    "latency",
+    "production"
+  ],
+  "created_at": "2026-04-16T00:55:57.903404+00:00"
+}

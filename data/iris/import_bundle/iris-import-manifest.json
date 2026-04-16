@@ -1,0 +1,18 @@
+{
+  "bundle_name": "iris-incident-resolution-bundle",
+  "project_key": "SERVICE-X",
+  "service": "service-x",
+  "generated_at": "2026-04-16T00:55:57.903404+00:00",
+  "source_files": [
+    "data/confluence/redis-latency-runbook.md",
+    "data/runbooks/high-cpu-service-x.md",
+    "data/incidents/incident-2026-04-08.json",
+    "data/github/pr-rollback-example.md",
+    "data/slack/customer-xyz-thread.md"
+  ],
+  "output_files": [
+    "iris-incident-seed.json",
+    "iris-resolution-plan.json",
+    "iris-runbook-mapping.json"
+  ]
+}

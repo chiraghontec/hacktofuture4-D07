@@ -21,6 +21,9 @@ backend/.uniops/
 *.log
 .DS_Store
 
+# Local third-party checkout
+.vendor/
+
 # IDE
 .vscode/*
 !.vscode/extensions.json

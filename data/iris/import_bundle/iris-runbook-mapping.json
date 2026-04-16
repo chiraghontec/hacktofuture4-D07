@@ -1,0 +1,28 @@
+{
+  "project_key": "SERVICE-X",
+  "incident_type": "redis_latency_spike_after_deployment",
+  "service": "service-x",
+  "severity_map": {
+    "SEV-1": "critical",
+    "SEV-2": "high",
+    "SEV-3": "medium",
+    "SEV-4": "low"
+  },
+  "runbook_links": [
+    {
+      "title": "Redis Latency Runbook",
+      "category": "confluence",
+      "path": "data/confluence/redis-latency-runbook.md"
+    },
+    {
+      "title": "High CPU Runbook for Service X",
+      "category": "runbooks",
+      "path": "data/runbooks/high-cpu-service-x.md"
+    }
+  ],
+  "required_context_sources": [
+    "data/incidents/incident-2026-04-08.json",
+    "data/github/pr-rollback-example.md",
+    "data/slack/customer-xyz-thread.md"
+  ]
+}

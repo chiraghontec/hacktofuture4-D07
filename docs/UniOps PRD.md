@@ -194,3 +194,13 @@ Mentor insight: In well-documented teams, knowledge hunting is “very quick” 
 * Clean, professional UI with real-time trace  
 * Plug-and-play philosophy visibly demonstrated
 
+---
+
+### **10\. As-Built Status (2026-04-16)**
+
+For the latest implementation reality (endpoints, flows, tests, and pending gaps), use:
+
+* `docs/ways-of-working/IMPLEMENTATION_STATUS_2026-04-16.md`
+
+This section is intentionally pointer-based to keep the PRD stable while the implementation evolves quickly.
+

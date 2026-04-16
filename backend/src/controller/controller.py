@@ -91,7 +91,14 @@ class ControllerKernel:
         )
 
         trace_payload = [asdict(item) for item in trace]
-        self.memory.persist_transcript(trace_id=trace_id, steps=trace_payload, dedup_summary=dedup_summary)
+        self.memory.persist_transcript(
+            trace_id=trace_id,
+            steps=trace_payload,
+            dedup_summary=dedup_summary,
+            suggested_action=reasoning["suggested_action"],
+            needs_approval=execution["requires_human_approval"],
+            execution_status=execution["status"],
+        )
 
         return ControllerResult(
             answer=reasoning["answer"],

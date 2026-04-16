@@ -50,10 +50,72 @@
       "last_run_at": "string|null"
     }
   },
+  "ingestion": {
+    "iris": {
+      "endpoint": "POST /api/ingest/iris?case_id=<id>",
+      "response": {
+        "ingested_count": "number",
+        "source": "iris",
+        "case_id": "string",
+        "incident_report": "IncidentReport"
+      }
+    },
+    "confluence": {
+      "endpoint": "POST /api/ingest/confluence",
+      "request": {
+        "page_ids": [
+          "string"
+        ]
+      },
+      "response": {
+        "ingested_count": "number",
+        "failed_count": "number",
+        "source": "confluence",
+        "results": [
+          {
+            "page_id": "string",
+            "status": "ingested|failed",
+            "title": "string|null",
+            "error": "string|null"
+          }
+        ]
+      }
+    }
+  },
+  "approval": {
+    "endpoint": "POST /api/approvals/{trace_id}",
+    "request": {
+      "decision": "approve|reject",
+      "approver_id": "string",
+      "comment": "string (optional)"
+    },
+    "response": {
+      "trace_id": "string",
+      "final_status": "executed|rejected",
+      "approval": {
+        "decision": "approve|reject",
+        "approver_id": "string",
+        "comment": "string",
+        "timestamp": "string"
+      },
+      "execution_result": {
+        "tool": "string",
+        "status": "string",
+        "output": "string",
+        "timestamp": "string"
+      }
+    }
+  },
   "transcript": {
     "endpoint": "GET /api/chat/transcript/{trace_id}",
     "response": {
       "trace_id": "string",
+      "suggested_action": "string",
+      "needs_approval": "boolean",
+      "execution_status": "string",
+      "final_status": "string (optional)",
+      "approval": "object (optional)",
+      "execution_result": "object (optional)",
       "dedup_summary": {
         "documents": {
           "scanned": "number",

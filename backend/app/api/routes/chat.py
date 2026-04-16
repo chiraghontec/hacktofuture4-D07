@@ -4,8 +4,8 @@ import json
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, model_validator
-from sse_starlette.sse import EventSourceResponse
 
 from src.controller.controller import ControllerKernel
 from src.memory.three_tier_memory import ThreeTierMemory
@@ -113,16 +113,14 @@ def get_transcript(trace_id: str) -> dict:
 
 
 @router.get("/chat/stream")
-async def stream_chat_trace(trace_id: str) -> EventSourceResponse:
+async def stream_chat_trace(trace_id: str) -> StreamingResponse:
     transcript = memory.get_transcript(trace_id)
     if transcript is None:
         raise HTTPException(status_code=404, detail=f"trace {trace_id} not found")
 
     async def event_generator():
         for step in transcript.get("steps", []):
-            yield {
-                "event": "trace_step",
-                "data": json.dumps(_to_stream_payload(step)),
-            }
+            payload = json.dumps(_to_stream_payload(step))
+            yield f"event: trace_step\ndata: {payload}\n\n"
 
-    return EventSourceResponse(event_generator())
+    return StreamingResponse(event_generator(), media_type="text/event-stream")

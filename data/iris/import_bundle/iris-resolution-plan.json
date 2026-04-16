@@ -1,0 +1,59 @@
+{
+  "project_key": "SERVICE-X",
+  "service": "service-x",
+  "incident_summary": "Redis latency spike after deployment",
+  "workflow": [
+    "detect",
+    "triage",
+    "diagnose",
+    "propose_action",
+    "approval",
+    "execute",
+    "resolve",
+    "postmortem"
+  ],
+  "runbooks": [
+    {
+      "name": "Redis Latency Runbook",
+      "source_path": "data/confluence/redis-latency-runbook.md",
+      "steps": [
+        "Check recent deployment and config changes.",
+        "Check memory pressure and key eviction metrics.",
+        "Apply safe rollback only after approval."
+      ]
+    },
+    {
+      "name": "High CPU Runbook for Service X",
+      "source_path": "data/runbooks/high-cpu-service-x.md",
+      "steps": [
+        "Confirm alert threshold and duration.",
+        "Check latest PRs and feature flags.",
+        "Scale up only after explicit approval."
+      ]
+    }
+  ],
+  "approval_policy": {
+    "required_for_actions": [
+      "rollback",
+      "deploy",
+      "update",
+      "scale",
+      "create"
+    ],
+    "approver_role": "sre_lead",
+    "note": "Rollback and scale actions require explicit SRE approval before execution."
+  },
+  "operational_evidence": {
+    "github": {
+      "source_path": "data/github/pr-rollback-example.md",
+      "pr": "#142",
+      "reason": "Increased latency and error rate",
+      "action": "Revert commit and trigger deployment"
+    },
+    "slack": {
+      "source_path": "data/slack/customer-xyz-thread.md",
+      "summary": "# Slack Thread Summary (Sample)\n\nCustomer XYZ experienced elevated latency after enabling feature flag `beta_cache_path`.\nKey takeaway: rollback decision required explicit SRE approval."
+    }
+  },
+  "generated_at": "2026-04-16T00:55:57.903404+00:00"
+}

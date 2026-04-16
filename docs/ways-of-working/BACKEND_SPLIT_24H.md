@@ -53,18 +53,23 @@ Both engineers should carry 8 to 10 points in first 18 hours.
 
 ## Feature Allocation (POC-Compliant)
 Engineer 1:
-1. [ ] Controller pipeline with swarm chaining (P0, 3)
-2. [ ] Retrieval + reasoning output schema and citation model (P0, 3)
-3. [ ] Permission decision policy rules for HITL (P1, 2)
-4. [ ] Memory summary and dedup pass API for Kairos-lite (P1, 2)
+1. [x] Controller pipeline with swarm chaining (P0, 3)
+2. [x] Retrieval + reasoning output schema and citation model (P0, 3)
+3. [x] Permission decision policy rules for HITL (P1, 2)
+4. [x] Memory summary and dedup pass API for Kairos-lite (P1, 2)
 Total: 10
 
 Engineer 2:
-1. [ ] FastAPI chat + stream endpoints and response contracts (P0, 3)
-2. [ ] SSE event delivery, reconnect-safe behavior, timeout handling (P0, 3)
-3. [ ] Approval queue execution path + mock tool invocation hooks (P1, 2)
-4. [ ] Structured audit logs + health checks + docker runtime hardening (P1, 2)
+1. [x] FastAPI chat + stream endpoints and response contracts (P0, 3)
+2. [~] SSE event delivery, reconnect-safe behavior, timeout handling (P0, 3)
+3. [x] Approval queue execution path + mock tool invocation hooks (P1, 2)
+4. [~] Structured audit logs + health checks + docker runtime hardening (P1, 2)
 Total: 10
+
+Progress note (2026-04-16):
+- Implemented backend endpoints now include chat, transcript, stream, ingestion, and approval APIs.
+- Contract updates for ingestion and approval are complete in `shared/contracts/chat.contract.json`.
+- Remaining backend hardening is mainly reliability behavior (SSE reconnect semantics, retries/timeouts, and final runtime polish).
 
 ## Integration Contract Between Both
 - Engineer 1 outputs trace events in canonical shape.
@@ -77,19 +82,19 @@ Hour 0-2:
 - [x] Engineer 2: API skeleton + health + chat route baseline
 
 Hour 2-8:
-- [ ] Engineer 1: retrieval and reasoning composition + source citation model
-- [ ] Engineer 2: SSE stream endpoint and API error envelopes
+- [x] Engineer 1: retrieval and reasoning composition + source citation model
+- [~] Engineer 2: SSE stream endpoint and API error envelopes
 
 Hour 8-14:
-- [ ] Engineer 1: permission policy rules + memory hooks
-- [ ] Engineer 2: approval queue API + tool registry wiring
+- [x] Engineer 1: permission policy rules + memory hooks
+- [x] Engineer 2: approval queue API + tool registry wiring
 
 Hour 14-20:
-- [ ] Engineer 1: Kairos-lite dedup and reasoning quality improvements
-- [ ] Engineer 2: audit logging, reliability checks, docker and Milvus validation
+- [x] Engineer 1: Kairos-lite dedup and reasoning quality improvements
+- [~] Engineer 2: audit logging, reliability checks, docker and Milvus validation
 
 Hour 20-24:
-- [ ] Both: bug fixing, smoke tests, demo hardening, no schema-breaking changes
+- [~] Both: bug fixing, smoke tests, demo hardening, no schema-breaking changes
 
 ## Conflict Prevention Rules for Backend Pair
 1. Engineer 1 should not edit backend/app except interface signatures.

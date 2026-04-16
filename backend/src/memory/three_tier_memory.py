@@ -17,6 +17,8 @@ class MemoryDocument:
 
 
 class ThreeTierMemory:
+    _runtime_documents: list[MemoryDocument] = []
+
     def __init__(self) -> None:
         self.index_layer = "MEMORY.MD"
         self.docs_layer = "markdown"
@@ -24,7 +26,9 @@ class ThreeTierMemory:
         self.repo_root = Path(__file__).resolve().parents[3]
         self.data_root = self.repo_root / "data"
         self.transcript_root = self.repo_root / "backend" / ".uniops" / "transcripts"
+        self.approval_root = self.repo_root / "backend" / ".uniops" / "approvals"
         self.transcript_root.mkdir(parents=True, exist_ok=True)
+        self.approval_root.mkdir(parents=True, exist_ok=True)
         self._documents_cache: list[MemoryDocument] | None = None
         self._last_dedup_report: dict[str, Any] = {
             "documents": {"scanned": 0, "duplicates": 0, "retained": [], "duplicate_map": []},
@@ -90,14 +94,27 @@ class ThreeTierMemory:
                     )
                 )
 
+        collected.extend(self.__class__._runtime_documents)
+
         self._documents_cache = collected
         return collected
+
+    def ingest_runtime_document(self, document: MemoryDocument) -> None:
+        runtime_documents = self.__class__._runtime_documents
+        runtime_documents[:] = [
+            item for item in runtime_documents if not (item.path == document.path and item.source_type == document.source_type)
+        ]
+        runtime_documents.append(document)
+        self._documents_cache = None
 
     def persist_transcript(
         self,
         trace_id: str,
         steps: list[dict[str, Any]],
         dedup_summary: dict[str, Any] | None = None,
+        suggested_action: str | None = None,
+        needs_approval: bool | None = None,
+        execution_status: str | None = None,
     ) -> None:
         target = self.transcript_root / f"{trace_id}.json"
         payload = {
@@ -106,7 +123,58 @@ class ThreeTierMemory:
         }
         if dedup_summary is not None:
             payload["dedup_summary"] = dedup_summary
+        if suggested_action is not None:
+            payload["suggested_action"] = suggested_action
+        if needs_approval is not None:
+            payload["needs_approval"] = needs_approval
+        if execution_status is not None:
+            payload["execution_status"] = execution_status
         target.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    def persist_approval_decision(
+        self,
+        trace_id: str,
+        approval: dict[str, Any],
+        execution_result: dict[str, Any],
+        final_status: str,
+    ) -> None:
+        approval_target = self.approval_root / f"{trace_id}.json"
+        payload = {
+            "trace_id": trace_id,
+            "approval": approval,
+            "execution_result": execution_result,
+            "final_status": final_status,
+        }
+        approval_target.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+        transcript = self.get_transcript(trace_id) or {"trace_id": trace_id, "steps": []}
+        transcript["approval"] = approval
+        transcript["execution_result"] = execution_result
+        transcript["final_status"] = final_status
+
+        approval_step = {
+            "step": "approval",
+            "agent": "approval_router",
+            "observation": f"{approval.get('decision', 'unknown')}: {execution_result.get('status', 'unknown')}",
+            "sources": [],
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+        steps = transcript.get("steps", [])
+        steps = [step for step in steps if step.get("step") != "approval"]
+        steps.append(approval_step)
+        transcript["steps"] = steps
+
+        transcript_target = self.transcript_root / f"{trace_id}.json"
+        transcript_target.write_text(json.dumps(transcript, indent=2), encoding="utf-8")
+
+    def get_approval_decision(self, trace_id: str) -> dict[str, Any] | None:
+        target = self.approval_root / f"{trace_id}.json"
+        if not target.exists():
+            return None
+        try:
+            return json.loads(target.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
 
     def get_transcript(self, trace_id: str) -> dict[str, Any] | None:
         target = self.transcript_root / f"{trace_id}.json"

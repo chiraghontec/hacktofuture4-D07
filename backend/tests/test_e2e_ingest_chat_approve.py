@@ -18,6 +18,33 @@ class _FakeConfluenceClient:
         }
 
 
+class _FakeExecutor:
+    def execute(self, action: str) -> dict[str, object]:
+        return {
+            "tool": "tool.registry.batch",
+            "status": "executed",
+            "output": f"Simulated execution for action: {action}",
+            "timestamp": "2026-04-16T00:00:00+00:00",
+            "details": [
+                {
+                    "tool": "github.fetch_issue",
+                    "status": "executed",
+                    "output": "GitHub issue fetched.",
+                },
+                {
+                    "tool": "slack.fetch_channel_messages",
+                    "status": "executed",
+                    "output": "Slack context fetched.",
+                },
+                {
+                    "tool": "jira.fetch_issue",
+                    "status": "executed",
+                    "output": "Jira issue fetched.",
+                },
+            ],
+        }
+
+
 def _clear_runtime_documents() -> None:
     ThreeTierMemory._runtime_documents = []
     kernel.memory._documents_cache = None
@@ -90,14 +117,15 @@ def test_e2e_batch_ingest_chat_stream_approve_transcript() -> None:
     assert completion_payload["needs_approval"] is True
     trace_id = completion_payload["trace_id"]
 
-    approve_response = client.post(
-        f"/api/approvals/{trace_id}",
-        json={
-            "decision": "approve",
-            "approver_id": "sre-lead",
-            "comment": "Approved in E2E test flow.",
-        },
-    )
+    with patch("app.api.routes.approvals.executor", _FakeExecutor()):
+        approve_response = client.post(
+            f"/api/approvals/{trace_id}",
+            json={
+                "decision": "approve",
+                "approver_id": "sre-lead",
+                "comment": "Approved in E2E test flow.",
+            },
+        )
 
     assert approve_response.status_code == 200
     approve_payload = approve_response.json()

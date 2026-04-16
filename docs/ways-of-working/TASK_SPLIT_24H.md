@@ -15,8 +15,8 @@ Legend:
 - [x] Engineer B: FastAPI setup, /health, /api/chat stub
 
 ## Hour 2-8
-- [~] Engineer A: SSE client, reasoning timeline UI, source citation cards
-- [x] Engineer B: Controller + retrieval/reasoning/execution swarm stubs, SSE endpoint
+- [ ] Engineer A: SSE client, reasoning timeline UI, source citation cards
+- [~] Engineer B: Controller + retrieval/reasoning/execution swarm stubs, SSE endpoint baseline only
 
 ## Hour 8-14
 - [ ] Engineer A: Approval modal and action queue UI
@@ -37,10 +37,13 @@ Legend:
 	- `GET /health`
 	- `POST /api/chat`
 	- `GET /api/chat/transcript/{trace_id}`
-	- `GET /api/chat/stream?trace_id=<id>`
+	- `POST /api/chat` (live SSE stream)
 	- `POST /api/ingest/iris?case_id=<id>`
-	- `POST /api/ingest/confluence?page_id=<id>`
+	- `POST /api/ingest/confluence` with body `{"page_ids": ["..."]}`
 	- `POST /api/approvals/{trace_id}`
 - Shared contract has ingestion and approval schemas implemented.
+- Shared contract now includes additive action and trace metadata fields for Groq-backed reasoning/execution transparency.
 - Approval tests are passing in current backend environment (`tests/test_approvals.py`).
-- Main remaining product gap is frontend completion for ingestion and HITL approval UX wiring.
+- Backend suite currently passes with Groq integration slices (`31 passed`).
+- SSE is not done yet beyond baseline endpoint streaming.
+- Main remaining product gaps are SSE completion and frontend completion for ingestion and HITL approval UX wiring.

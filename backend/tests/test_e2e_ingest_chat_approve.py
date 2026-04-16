@@ -23,13 +23,36 @@ def _clear_runtime_documents() -> None:
     kernel.memory._documents_cache = None
 
 
-def _read_stream_payloads(client: TestClient, trace_id: str) -> list[dict]:
-    with client.stream("GET", f"/api/chat/stream?trace_id={trace_id}") as response:
+def _read_stream_events(client: TestClient, payload: dict[str, str]) -> list[dict]:
+    with client.stream("POST", "/api/chat", json=payload) as response:
         assert response.status_code == 200
         lines = list(response.iter_lines())
 
-    data_lines = [line for line in lines if line.startswith("data:")]
-    return [json.loads(line.split("data:", 1)[1].strip()) for line in data_lines]
+    events: list[dict] = []
+    pending_event = "message"
+    pending_data: list[str] = []
+
+    for raw_line in lines:
+        line = str(raw_line).strip()
+        if line == "":
+            if pending_data:
+                events.append(
+                    {
+                        "event": pending_event,
+                        "payload": json.loads("\n".join(pending_data)),
+                    }
+                )
+            pending_event = "message"
+            pending_data = []
+            continue
+
+        if line.startswith("event:"):
+            pending_event = line.split("event:", 1)[1].strip()
+            continue
+        if line.startswith("data:"):
+            pending_data.append(line.split("data:", 1)[1].strip())
+
+    return events
 
 
 def test_e2e_batch_ingest_chat_stream_approve_transcript() -> None:
@@ -48,21 +71,24 @@ def test_e2e_batch_ingest_chat_stream_approve_transcript() -> None:
     assert ingest_payload["ingested_count"] == 2
     assert ingest_payload["failed_count"] == 0
 
-    chat_response = client.post(
-        "/api/chat",
-        json={
+    stream_events = _read_stream_events(
+        client,
+        {
             "message": "Create rollback PR and notify Slack and Jira for redis latency incident",
             "session_id": "sess-e2e-golden-flow",
         },
     )
 
-    assert chat_response.status_code == 200
-    chat_payload = chat_response.json()
-    assert chat_payload["needs_approval"] is True
-    trace_id = chat_payload["trace_id"]
+    event_names = [item["event"] for item in stream_events]
+    assert "trace_started" in event_names
+    assert "trace_complete" in event_names
 
-    stream_payloads = _read_stream_payloads(client, trace_id)
-    assert [item["step"] for item in stream_payloads] == ["retrieval", "reasoning", "execution"]
+    step_payloads = [item["payload"] for item in stream_events if item["event"] == "trace_step"]
+    assert [item["step"] for item in step_payloads] == ["retrieval", "reasoning", "execution"]
+
+    completion_payload = next(item["payload"] for item in stream_events if item["event"] == "trace_complete")
+    assert completion_payload["needs_approval"] is True
+    trace_id = completion_payload["trace_id"]
 
     approve_response = client.post(
         f"/api/approvals/{trace_id}",

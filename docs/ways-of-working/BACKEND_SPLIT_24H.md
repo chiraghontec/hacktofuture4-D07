@@ -61,7 +61,7 @@ Total: 10
 
 Engineer 2:
 1. [x] FastAPI chat + stream endpoints and response contracts (P0, 3)
-2. [~] SSE event delivery, reconnect-safe behavior, timeout handling (P0, 3)
+2. [ ] SSE event delivery, reconnect-safe behavior, timeout handling (P0, 3)
 3. [x] Approval queue execution path + mock tool invocation hooks (P1, 2)
 4. [~] Structured audit logs + health checks + docker runtime hardening (P1, 2)
 Total: 10
@@ -69,7 +69,11 @@ Total: 10
 Progress note (2026-04-16):
 - Implemented backend endpoints now include chat, transcript, stream, ingestion, and approval APIs.
 - Contract updates for ingestion and approval are complete in `shared/contracts/chat.contract.json`.
-- Remaining backend hardening is mainly reliability behavior (SSE reconnect semantics, retries/timeouts, and final runtime polish).
+- Groq-first integration slice completed across retrieval, reasoning, and execution swarms.
+- Trace payloads now expose richer metadata (`confidence_breakdown`, `reasoning_steps`, `evidence_scores`, structured action details).
+- Backend regression baseline currently: `31 passed` in backend test suite.
+- SSE is not done yet beyond baseline endpoint streaming; reconnect-safe semantics, heartbeat, and timeout handling remain pending.
+- Remaining backend hardening is mainly reliability behavior (SSE reliability, retries/timeouts, and final runtime polish).
 
 ## Integration Contract Between Both
 - Engineer 1 outputs trace events in canonical shape.
@@ -83,7 +87,7 @@ Hour 0-2:
 
 Hour 2-8:
 - [x] Engineer 1: retrieval and reasoning composition + source citation model
-- [~] Engineer 2: SSE stream endpoint and API error envelopes
+- [ ] Engineer 2: SSE stream endpoint reliability and API error envelopes
 
 Hour 8-14:
 - [x] Engineer 1: permission policy rules + memory hooks

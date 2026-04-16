@@ -113,6 +113,7 @@ class ThreeTierMemory:
         steps: list[dict[str, Any]],
         dedup_summary: dict[str, Any] | None = None,
         suggested_action: str | None = None,
+        action_details: dict[str, Any] | None = None,
         needs_approval: bool | None = None,
         execution_status: str | None = None,
     ) -> None:
@@ -125,6 +126,8 @@ class ThreeTierMemory:
             payload["dedup_summary"] = dedup_summary
         if suggested_action is not None:
             payload["suggested_action"] = suggested_action
+        if action_details is not None:
+            payload["action_details"] = action_details
         if needs_approval is not None:
             payload["needs_approval"] = needs_approval
         if execution_status is not None:

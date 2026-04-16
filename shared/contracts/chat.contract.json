@@ -1,6 +1,6 @@
 {
   "version": "0.1.0",
-  "endpoint": "POST /api/chat",
+  "endpoint": "POST /api/chat (text/event-stream)",
   "request": {
     "message": "string (optional)",
     "session_id": "string",
@@ -33,22 +33,8 @@
     "precedence": "When incident_report is present, backend derives canonical query context from incident_report and ignores message for controller query input."
   },
   "response": {
-    "answer": "string",
-    "trace_id": "string",
-    "needs_approval": "boolean",
-    "dedup_summary": {
-      "documents": {
-        "scanned": "number",
-        "duplicates": "number"
-      },
-      "transcripts": {
-        "scanned": "number",
-        "duplicates": "number"
-      },
-      "deduped_count": "number",
-      "duplication_ratio": "number",
-      "last_run_at": "string|null"
-    }
+    "content_type": "text/event-stream",
+    "notes": "Endpoint emits live SSE events while controller executes retrieval, reasoning, and execution stages. Transcript remains available via /api/chat/transcript/{trace_id}."
   },
   "ingestion": {
     "iris": {
@@ -111,6 +97,13 @@
     "response": {
       "trace_id": "string",
       "suggested_action": "string",
+      "action_details": {
+        "intent": "string (optional)",
+        "tool": "string|null (optional)",
+        "parameters": "object (optional)",
+        "approval_required": "boolean (optional)",
+        "risk_hint": "string|null (optional)"
+      },
       "needs_approval": "boolean",
       "execution_status": "string",
       "final_status": "string (optional)",
@@ -137,27 +130,119 @@
           "sources": [
             {
               "title": "string",
-              "path": "string"
+              "path": "string",
+              "source_type": "string (optional)",
+              "score": "number (optional)"
             }
           ],
-          "timestamp": "string"
+          "timestamp": "string",
+          "metadata": {
+            "retrieval_method": "string (optional)",
+            "query_tokens": [
+              "string"
+            ],
+            "llm_query_expansion": "object (optional)",
+            "confidence": "number (optional)",
+            "confidence_breakdown": "object (optional)",
+            "reasoning_steps": [
+              "string"
+            ],
+            "evidence_scores": [
+              {
+                "title": "string",
+                "path": "string",
+                "source_type": "string",
+                "raw_score": "number",
+                "priority_score": "number"
+              }
+            ],
+            "action_details": "object (optional)",
+            "risk_level": "string (optional)",
+            "requires_human_approval": "boolean (optional)",
+            "execution_reasoning": "string (optional)",
+            "provider": "string (optional)",
+            "model": "string (optional)",
+            "risk_hint": "string (optional)"
+          }
         }
       ]
     }
   },
   "stream": {
-    "endpoint": "GET /api/chat/stream?trace_id=<id>",
-    "event": "trace_step",
-    "payload": {
+    "endpoint": "POST /api/chat",
+    "transport": "SSE",
+    "sse_fields": {
+      "id": "trace_id:sequence",
+      "event": "trace_started|trace_step|trace_heartbeat|trace_complete|trace_error",
+      "data": "json payload"
+    },
+    "event_envelope": {
+      "event_type": "string",
+      "event_id": "string",
+      "trace_id": "string",
+      "sequence": "number",
+      "timestamp": "string",
+      "status": "string",
+      "metadata": "object (optional)"
+    },
+    "trace_step_payload": {
       "step": "string",
       "agent": "string",
       "observation": "string",
       "sources": [
         {
           "title": "string",
-          "path": "string"
+          "path": "string",
+          "source_type": "string (optional)",
+          "score": "number (optional)"
         }
-      ]
+      ],
+      "metadata": {
+        "retrieval_method": "string (optional)",
+        "query_tokens": [
+          "string"
+        ],
+        "llm_query_expansion": "object (optional)",
+        "confidence": "number (optional)",
+        "confidence_breakdown": "object (optional)",
+        "reasoning_steps": [
+          "string"
+        ],
+        "evidence_scores": [
+          {
+            "title": "string",
+            "path": "string",
+            "source_type": "string",
+            "raw_score": "number",
+            "priority_score": "number"
+          }
+        ],
+        "action_details": "object (optional)",
+        "risk_level": "string (optional)",
+        "requires_human_approval": "boolean (optional)",
+        "execution_reasoning": "string (optional)",
+        "provider": "string (optional)",
+        "model": "string (optional)",
+        "risk_hint": "string (optional)",
+        "started_at": "string (optional)",
+        "finished_at": "string (optional)",
+        "duration_ms": "number (optional)"
+      }
+    },
+    "trace_complete_payload": {
+      "answer": "string",
+      "needs_approval": "boolean",
+      "suggested_action": "string|null",
+      "metadata": {
+        "dedup_summary": "object",
+        "action_details": "object (optional)",
+        "execution_status": "string (optional)",
+        "step_count": "number"
+      }
+    },
+    "trace_error_payload": {
+      "error_code": "string",
+      "error": "string"
     }
   }
 }

@@ -3,24 +3,26 @@ export type ChatRequest = {
   session_id: string;
 };
 
-export type ChatResponse = {
-  answer: string;
-  trace_id: string;
-  needs_approval: boolean;
-  dedup_summary: {
-    documents: {
-      scanned: number;
-      duplicates: number;
-    };
-    transcripts: {
-      scanned: number;
-      duplicates: number;
-    };
-    deduped_count: number;
-    duplication_ratio: number;
-    last_run_at: string | null;
+export type DedupSummary = {
+  documents: {
+    scanned: number;
+    duplicates: number;
   };
+  transcripts: {
+    scanned: number;
+    duplicates: number;
+  };
+  deduped_count: number;
+  duplication_ratio: number;
+  last_run_at: string | null;
 };
+
+export type ChatStreamEventType =
+  | "trace_started"
+  | "trace_step"
+  | "trace_heartbeat"
+  | "trace_complete"
+  | "trace_error";
 
 export type ChatError = {
   error: string;
@@ -89,19 +91,95 @@ export type TraceStep = {
   sources: Array<{
     title: string;
     path: string;
+    source_type?: string;
+    score?: number;
   }>;
+  metadata?: {
+    stream_sequence?: number;
+    retrieval_method?: string;
+    query_tokens?: string[];
+    llm_query_expansion?: {
+      used?: boolean;
+      provider?: string | null;
+      model?: string | null;
+      expanded_query_tokens?: string[];
+    };
+    confidence?: number;
+    confidence_breakdown?: {
+      base_confidence?: number;
+      quality_bonus?: number;
+      duplicate_penalty?: number;
+      clean_evidence_bonus?: number;
+      duplication_ratio?: number;
+      final_confidence?: number;
+    };
+    reasoning_steps?: string[];
+    evidence_scores?: Array<{
+      title: string;
+      path: string;
+      source_type: string;
+      raw_score: number;
+      priority_score: number;
+    }>;
+    action_details?: {
+      intent?: string;
+      tool?: string | null;
+      parameters?: Record<string, unknown>;
+      approval_required?: boolean;
+      risk_hint?: string | null;
+    };
+    risk_level?: string;
+    requires_human_approval?: boolean;
+    execution_reasoning?: string;
+    provider?: string;
+    model?: string;
+    risk_hint?: string | null;
+    started_at?: string;
+    finished_at?: string;
+    duration_ms?: number;
+  };
   timestamp?: string;
+};
+
+export type ChatStreamEvent = {
+  event_type: ChatStreamEventType;
+  event_id: string;
+  trace_id: string;
+  sequence: number;
+  timestamp: string;
+  status: string;
+  step?: string;
+  agent?: string;
+  observation?: string;
+  sources?: TraceStep["sources"];
+  metadata?: TraceStep["metadata"] & {
+    dedup_summary?: DedupSummary;
+    step_count?: number;
+    message?: string;
+  };
+  answer?: string;
+  needs_approval?: boolean;
+  suggested_action?: string | null;
+  error_code?: string;
+  error?: string;
 };
 
 export type TranscriptResponse = {
   trace_id: string;
   suggested_action?: string;
+  action_details?: {
+    intent?: string;
+    tool?: string | null;
+    parameters?: Record<string, unknown>;
+    approval_required?: boolean;
+    risk_hint?: string | null;
+  };
   needs_approval?: boolean;
   execution_status?: string;
   final_status?: string;
   approval?: ApprovalResponse["approval"];
   execution_result?: ApprovalResponse["execution_result"];
-  dedup_summary?: ChatResponse["dedup_summary"];
+  dedup_summary?: DedupSummary;
   steps: TraceStep[];
 };
 
@@ -140,18 +218,128 @@ function assertSuccess<T>(response: Response, parsedBody: unknown): T {
   return parsedBody as T;
 }
 
-export async function postChat(payload: ChatRequest): Promise<ChatResponse> {
+type ParsedSSE = {
+  event: string;
+  id: string;
+  data: string;
+};
+
+function parseSSEChunk(chunk: string): ParsedSSE | null {
+  const lines = chunk
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter((line) => line.length > 0);
+
+  if (lines.length === 0) {
+    return null;
+  }
+
+  let event = "message";
+  let id = "";
+  const dataParts: string[] = [];
+
+  for (const line of lines) {
+    if (line.startsWith("event:")) {
+      event = line.slice("event:".length).trim();
+      continue;
+    }
+    if (line.startsWith("id:")) {
+      id = line.slice("id:".length).trim();
+      continue;
+    }
+    if (line.startsWith("data:")) {
+      dataParts.push(line.slice("data:".length).trimStart());
+    }
+  }
+
+  return {
+    event,
+    id,
+    data: dataParts.join("\n"),
+  };
+}
+
+function eventFromParsed(parsed: ParsedSSE): ChatStreamEvent | null {
+  if (!parsed.data) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(parsed.data) as ChatStreamEvent;
+    if (!payload.event_id && parsed.id) {
+      payload.event_id = parsed.id;
+    }
+    if (!payload.event_type && parsed.event) {
+      payload.event_type = parsed.event as ChatStreamEventType;
+    }
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+export async function streamChat(
+  payload: ChatRequest,
+  options: {
+    onEvent: (event: ChatStreamEvent) => void;
+    signal?: AbortSignal;
+  },
+): Promise<void> {
   const response = await fetch(`${backendBaseUrl}/api/chat`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      Accept: "text/event-stream",
     },
     body: JSON.stringify(payload),
     cache: "no-store",
+    signal: options.signal,
   });
 
-  const parsedBody = await parseJson(response);
-  return assertSuccess<ChatResponse>(response, parsedBody);
+  if (!response.ok) {
+    const parsedBody = await parseJson(response);
+    throw new Error(errorMessageFromBody(parsedBody, response.status));
+  }
+
+  if (!response.body) {
+    throw new Error("SSE stream did not provide a readable response body.");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) {
+      if (buffer.trim().length > 0) {
+        const parsed = parseSSEChunk(buffer);
+        if (parsed) {
+          const event = eventFromParsed(parsed);
+          if (event) {
+            options.onEvent(event);
+          }
+        }
+      }
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+    const chunks = buffer.split(/\r?\n\r?\n/);
+    buffer = chunks.pop() ?? "";
+
+    for (const chunk of chunks) {
+      const parsed = parseSSEChunk(chunk);
+      if (!parsed) {
+        continue;
+      }
+      const event = eventFromParsed(parsed);
+      if (!event) {
+        continue;
+      }
+      options.onEvent(event);
+    }
+  }
 }
 
 export async function ingestConfluence(pageIds: string[]): Promise<IngestConfluenceResponse> {
@@ -210,6 +398,3 @@ export async function getTranscript(traceId: string): Promise<TranscriptResponse
   return assertSuccess<TranscriptResponse>(response, parsedBody);
 }
 
-export function streamTrace(traceId: string): EventSource {
-  return new EventSource(`${backendBaseUrl}/api/chat/stream?trace_id=${encodeURIComponent(traceId)}`);
-}

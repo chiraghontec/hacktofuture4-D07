@@ -1,4 +1,23 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+This is a [Next.js](https://nextjs.org) frontend for UniOps.
+
+## API Integration Notes
+
+- Chat execution uses `POST /api/chat` as a live `text/event-stream` endpoint.
+- Frontend consumes SSE events via `fetch` stream parsing (not `EventSource`) to support JSON request body payloads.
+- Supported live event types:
+	- `trace_started`
+	- `trace_step`
+	- `trace_heartbeat`
+	- `trace_complete`
+	- `trace_error`
+- Frontend enforces strict Groq provider policy for agent steps:
+	- `reasoning` and `execution` `trace_step` metadata must include `provider=groq`
+	- any `provider=deterministic` or `model=heuristic` metadata is treated as an error
+- Retrieval query-expansion metadata is also validated when present (`llm_query_expansion.provider` must be `groq`).
+- `trace_complete` provides `trace_id`, which is then used for:
+	- `GET /api/chat/transcript/{trace_id}`
+	- `POST /api/approvals/{trace_id}`
+- Optional incident context mode sends `incident_report` in the chat request when an IRIS case has been ingested.
 
 ## Getting Started
 

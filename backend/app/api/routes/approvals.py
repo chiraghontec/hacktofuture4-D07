@@ -33,8 +33,12 @@ def submit_approval(trace_id: str, payload: ApprovalDecisionRequest) -> Approval
         raise HTTPException(status_code=404, detail=f"trace {trace_id} not found")
 
     suggested_action = str(transcript.get("suggested_action", "")).strip()
-    if not suggested_action:
+    action_details = transcript.get("action_details") if isinstance(transcript.get("action_details"), dict) else None
+    if not suggested_action and not action_details:
         raise HTTPException(status_code=409, detail="trace does not contain a suggested action")
+
+    if not suggested_action and action_details is not None:
+        suggested_action = str(action_details.get("intent") or "execute approved action")
 
     approval = {
         "decision": payload.decision,
@@ -52,7 +56,7 @@ def submit_approval(trace_id: str, payload: ApprovalDecisionRequest) -> Approval
         }
         final_status = "rejected"
     else:
-        execution_result = executor.execute(suggested_action)
+        execution_result = executor.execute(suggested_action, action_details=action_details)
         final_status = "executed"
 
     memory.persist_approval_decision(

@@ -32,7 +32,7 @@
 - [x] Established branch split strategy and pushed baseline/core changes to `main`.
 - [x] Pushed backend orchestration and skill assets to feature branch.
 - [x] Slice 1: Contract updates for stream/transcript endpoints.
-- [x] Slice 1: Backend SSE trace stream endpoint (`GET /api/chat/stream`).
+- [x] Slice 1: Backend live SSE trace endpoint (`POST /api/chat`).
 - [x] Slice 1: Backend transcript read endpoint (`GET /api/chat/transcript/{trace_id}`).
 - [x] Slice 1: Frontend hooks for chat and trace streaming.
 - [x] Slice 1: Frontend page integration for answer + live trace.

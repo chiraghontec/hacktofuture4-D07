@@ -4,6 +4,8 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import {
   type ApprovalResponse,
+  type ChatStreamEvent,
+  type IncidentReport,
   type IngestConfluenceResponse,
   type IngestIrisResponse,
   type TraceStep,
@@ -11,10 +13,11 @@ import {
   getTranscript,
   ingestConfluence,
   ingestIris,
-  postChat,
-  streamTrace,
+  streamChat,
   submitApproval,
 } from "@/lib/chat-api";
+
+const STRICT_LLM_PROVIDER = "groq";
 
 function parsePageIds(value: string): string[] {
   return Array.from(
@@ -34,6 +37,39 @@ function errorToMessage(error: unknown): string {
   return "Unexpected request failure.";
 }
 
+function providerPolicyViolation(event: ChatStreamEvent): string | null {
+  if (event.event_type !== "trace_step") {
+    return null;
+  }
+
+  const stepName = String(event.step ?? "").toLowerCase();
+  if (stepName === "reasoning" || stepName === "execution") {
+    const provider = String(event.metadata?.provider ?? "").trim().toLowerCase();
+    const model = String(event.metadata?.model ?? "").trim().toLowerCase();
+
+    if (!provider) {
+      return `Missing provider metadata on ${stepName} step. Expected ${STRICT_LLM_PROVIDER}.`;
+    }
+
+    if (provider === "deterministic" || model === "heuristic") {
+      return `Invalid deterministic metadata detected on ${stepName} step.`;
+    }
+
+    if (provider !== STRICT_LLM_PROVIDER) {
+      return `Unexpected provider '${provider}' on ${stepName} step. Expected ${STRICT_LLM_PROVIDER}.`;
+    }
+  }
+
+  if (stepName === "retrieval") {
+    const expansionProvider = String(event.metadata?.llm_query_expansion?.provider ?? "").trim().toLowerCase();
+    if (expansionProvider && expansionProvider !== STRICT_LLM_PROVIDER) {
+      return `Unexpected retrieval expansion provider '${expansionProvider}'. Expected ${STRICT_LLM_PROVIDER}.`;
+    }
+  }
+
+  return null;
+}
+
 export default function Home() {
   const navItems = ["Overview", "Trace", "Approvals", "Runbooks"];
   const [sessionId] = useState<string>(() => {
@@ -48,6 +84,7 @@ export default function Home() {
   );
   const [confluencePageIds, setConfluencePageIds] = useState<string>("65868,65898");
   const [irisCaseId, setIrisCaseId] = useState<string>("1");
+  const [useIrisContextForChat, setUseIrisContextForChat] = useState<boolean>(false);
   const [approverId, setApproverId] = useState<string>("demo-approver");
   const [approvalComment, setApprovalComment] = useState<string>("Approved from frontend demo flow.");
 
@@ -68,40 +105,40 @@ export default function Home() {
   const [transcriptLoading, setTranscriptLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const eventSourceRef = useRef<EventSource | null>(null);
+  const streamAbortRef = useRef<AbortController | null>(null);
+  const seenEventIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    if (!traceId) {
-      return () => undefined;
-    }
-
-    eventSourceRef.current?.close();
-    const source = streamTrace(traceId);
-    eventSourceRef.current = source;
-    setStreamStatus("connecting");
-
-    const onTraceStep = (event: Event) => {
-      const messageEvent = event as MessageEvent<string>;
-      try {
-        const parsed = JSON.parse(messageEvent.data) as TraceStep;
-        setTraceSteps((previous) => [...previous, parsed]);
-        setStreamStatus("streaming");
-      } catch {
-        setStreamStatus("parse_error");
-      }
-    };
-
-    source.addEventListener("trace_step", onTraceStep as EventListener);
-    source.onerror = () => {
-      setStreamStatus("closed");
-      source.close();
-    };
-
     return () => {
-      source.removeEventListener("trace_step", onTraceStep as EventListener);
-      source.close();
+      streamAbortRef.current?.abort();
     };
-  }, [traceId]);
+  }, []);
+
+  function stepFromStreamEvent(event: ChatStreamEvent): TraceStep {
+    const metadata = {
+      ...(event.metadata ?? {}),
+      stream_sequence: event.sequence,
+    };
+    return {
+      step: event.step ?? "unknown",
+      agent: event.agent ?? "unknown_agent",
+      observation: event.observation ?? "",
+      sources: event.sources ?? [],
+      metadata,
+      timestamp: event.timestamp,
+    };
+  }
+
+  function formatTimestamp(value?: string): string {
+    if (!value) {
+      return "n/a";
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return value;
+    }
+    return parsed.toLocaleString();
+  }
 
   async function refreshTranscript(activeTraceId: string): Promise<void> {
     setTranscriptLoading(true);
@@ -157,8 +194,13 @@ export default function Home() {
 
   async function handleChatSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    if (!message.trim()) {
+    const hasIrisContext = useIrisContextForChat && Boolean(irisResult?.incident_report);
+    if (!hasIrisContext && !message.trim()) {
       setErrorMessage("Enter an incident prompt before starting the session.");
+      return;
+    }
+    if (useIrisContextForChat && !irisResult?.incident_report) {
+      setErrorMessage("Ingest an IRIS case first before using incident_report chat mode.");
       return;
     }
 
@@ -168,19 +210,114 @@ export default function Home() {
     setTraceSteps([]);
     setTranscript(null);
     setApprovalResult(null);
+    setTraceId(null);
+    setAnswer("");
+
+    streamAbortRef.current?.abort();
+    const abortController = new AbortController();
+    streamAbortRef.current = abortController;
+    seenEventIdsRef.current = new Set();
+
+    let terminalErrorMessage: string | null = null;
 
     try {
-      const result = await postChat({
-        message: message.trim(),
+      let completedTraceId: string | null = null;
+
+      setStreamStatus("connecting");
+      const payload: {
+        message?: string;
+        session_id: string;
+        incident_report?: IncidentReport;
+      } = {
         session_id: sessionId,
-      });
-      setAnswer(result.answer);
-      setTraceId(result.trace_id);
-      setNeedsApproval(result.needs_approval);
+      };
+
+      if (!hasIrisContext) {
+        payload.message = message.trim();
+      }
+
+      if (hasIrisContext && irisResult?.incident_report) {
+        payload.incident_report = irisResult.incident_report;
+      }
+
+      await streamChat(
+        payload,
+        {
+          signal: abortController.signal,
+          onEvent: (streamEvent) => {
+            if (seenEventIdsRef.current.has(streamEvent.event_id)) {
+              return;
+            }
+            seenEventIdsRef.current.add(streamEvent.event_id);
+
+            if (streamEvent.trace_id && streamEvent.trace_id !== "trace-pending") {
+              setTraceId(streamEvent.trace_id);
+            }
+
+            if (streamEvent.event_type === "trace_started") {
+              setStreamStatus("streaming");
+              return;
+            }
+
+            if (streamEvent.event_type === "trace_heartbeat") {
+              setStreamStatus("heartbeat");
+              return;
+            }
+
+            if (streamEvent.event_type === "trace_step") {
+              const providerViolation = providerPolicyViolation(streamEvent);
+              if (providerViolation) {
+                terminalErrorMessage = providerViolation;
+                setStreamStatus("error");
+                abortController.abort();
+                return;
+              }
+
+              setStreamStatus("streaming");
+              setTraceSteps((previous) => [...previous, stepFromStreamEvent(streamEvent)]);
+              return;
+            }
+
+            if (streamEvent.event_type === "trace_complete") {
+              completedTraceId = streamEvent.trace_id;
+              setAnswer(streamEvent.answer ?? "");
+              setNeedsApproval(Boolean(streamEvent.needs_approval));
+              setStreamStatus("complete");
+              return;
+            }
+
+            if (streamEvent.event_type === "trace_error") {
+              terminalErrorMessage = streamEvent.error ?? "Streaming failed.";
+              setStreamStatus("error");
+            }
+          },
+        },
+      );
+
+      if (terminalErrorMessage) {
+        setErrorMessage(terminalErrorMessage);
+      }
+
+      if (completedTraceId) {
+        await refreshTranscript(completedTraceId);
+      }
     } catch (error: unknown) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        if (terminalErrorMessage) {
+          setErrorMessage(terminalErrorMessage);
+          setStreamStatus("error");
+        } else {
+          setStreamStatus("aborted");
+        }
+        return;
+      }
       setErrorMessage(errorToMessage(error));
+      setStreamStatus("error");
     } finally {
       setChatLoading(false);
+      if (streamAbortRef.current === abortController) {
+        streamAbortRef.current = null;
+      }
     }
   }
 
@@ -247,6 +384,8 @@ export default function Home() {
             Run the full demo from this page: ingest Confluence and IRIS context, generate trace-guided reasoning,
             and complete the human approval path with persisted transcript evidence.
           </p>
+          <p className="response-meta">Chat now runs as live POST SSE stream against /api/chat.</p>
+          <p className="response-meta">Strict provider mode: reasoning and execution must report provider={STRICT_LLM_PROVIDER}.</p>
 
           <form className="chat-form" onSubmit={handleChatSubmit}>
             <label className="chat-label" htmlFor="chat-message">
@@ -258,7 +397,23 @@ export default function Home() {
               rows={4}
               value={message}
               onChange={(event) => setMessage(event.target.value)}
+              disabled={useIrisContextForChat && Boolean(irisResult?.incident_report)}
             />
+            <label className="chat-label" htmlFor="use-iris-context">
+              <input
+                id="use-iris-context"
+                type="checkbox"
+                checked={useIrisContextForChat}
+                onChange={(event) => setUseIrisContextForChat(event.target.checked)}
+              />
+              Use latest IRIS incident report as chat context
+            </label>
+            {useIrisContextForChat && !irisResult?.incident_report && (
+              <p className="response-meta">Ingest an IRIS case first to include incident_report in the chat request.</p>
+            )}
+            {useIrisContextForChat && irisResult?.incident_report && (
+              <p className="response-meta">Incident report mode is active. Prompt text is optional and not sent.</p>
+            )}
             <div className="hero-actions">
               <button type="submit" className="btn btn-primary" disabled={chatLoading}>
                 {chatLoading ? "Running Session..." : "Start Incident Session"}
@@ -291,7 +446,7 @@ export default function Home() {
           <ul className="status-list">
             <li>
               <span>Chat Endpoint</span>
-              <strong>Ready</strong>
+              <strong>Groq-only</strong>
             </li>
             <li>
               <span>Trace Stream</span>
@@ -331,6 +486,80 @@ export default function Home() {
                 <li key={`${step.step}-${step.agent}-${index}`}>
                   <strong>{step.step}</strong> ({step.agent})<br />
                   {step.observation}
+                  <br />
+                  <small>
+                    Seq: {step.metadata?.stream_sequence ?? "n/a"} | Timestamp: {formatTimestamp(step.timestamp)}
+                  </small>
+                  {typeof step.metadata?.duration_ms === "number" && (
+                    <>
+                      <br />
+                      <small>Duration: {step.metadata.duration_ms.toFixed(2)}ms</small>
+                    </>
+                  )}
+                  {(step.metadata?.provider || step.metadata?.model) && (
+                    <>
+                      <br />
+                      <small>
+                        Provider: {step.metadata?.provider ?? "n/a"} | Model: {step.metadata?.model ?? "n/a"}
+                      </small>
+                    </>
+                  )}
+                  {step.metadata?.llm_query_expansion && (
+                    <>
+                      <br />
+                      <small>
+                        Query Expansion: {step.metadata.llm_query_expansion.used ? "used" : "not used"}
+                        {Array.isArray(step.metadata.llm_query_expansion.expanded_query_tokens)
+                          ? ` (${step.metadata.llm_query_expansion.expanded_query_tokens.join(", ")})`
+                          : ""}
+                      </small>
+                    </>
+                  )}
+                  {typeof step.metadata?.confidence === "number" && (
+                    <>
+                      <br />
+                      <small>Confidence: {step.metadata.confidence.toFixed(3)}</small>
+                    </>
+                  )}
+                  {typeof step.metadata?.confidence_breakdown?.final_confidence === "number" && (
+                    <>
+                      <br />
+                      <small>
+                        Confidence Breakdown: base {step.metadata.confidence_breakdown.base_confidence?.toFixed(3) ?? "n/a"},
+                        quality {step.metadata.confidence_breakdown.quality_bonus?.toFixed(3) ?? "n/a"},
+                        penalty {step.metadata.confidence_breakdown.duplicate_penalty?.toFixed(3) ?? "n/a"},
+                        final {step.metadata.confidence_breakdown.final_confidence.toFixed(3)}
+                      </small>
+                    </>
+                  )}
+                  {Array.isArray(step.metadata?.reasoning_steps) && step.metadata.reasoning_steps.length > 0 && (
+                    <>
+                      <br />
+                      <small>Reasoning Steps: {step.metadata.reasoning_steps.join(" | ")}</small>
+                    </>
+                  )}
+                  {Array.isArray(step.metadata?.evidence_scores) && step.metadata.evidence_scores.length > 0 && (
+                    <>
+                      <br />
+                      <small>
+                        Evidence Scores: {step.metadata.evidence_scores
+                          .map((score) => `${score.title} (${score.priority_score.toFixed(3)})`)
+                          .join(", ")}
+                      </small>
+                    </>
+                  )}
+                  {step.sources.length > 0 && (
+                    <>
+                      <br />
+                      <small>
+                        Sources: {step.sources
+                          .map((source) =>
+                            `${source.title}${typeof source.score === "number" ? ` (score ${source.score})` : ""}`,
+                          )
+                          .join(", ")}
+                      </small>
+                    </>
+                  )}
                 </li>
               ))}
             </ul>

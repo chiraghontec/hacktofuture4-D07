@@ -64,7 +64,13 @@ class ControllerKernel:
             )
         )
 
-        reasoning = self.reasoning_swarm.run({"query": query, "sources": retrieval["sources"]})
+        reasoning = self.reasoning_swarm.run(
+            {
+                "query": query,
+                "sources": retrieval["sources"],
+                "dedup_summary": dedup_summary,
+            }
+        )
         trace.append(
             self._trace_step(
                 step="reasoning",

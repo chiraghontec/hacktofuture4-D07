@@ -116,24 +116,3 @@ CONFLUENCE_SPACE_KEY=OPS
 CONFLUENCE_API_TOKEN=replace_me
 CONFLUENCE_EMAIL=replace_me@example.com
 ```
-
-## Incident Creation API (UniOps)
-
-UniOps now supports explicit IRIS case creation through backend API:
-
-- `POST /api/incidents/create`
-
-Example payload:
-
-```json
-{
-   "case_name": "Redis Latency Spike",
-   "case_description": "P95 latency increased after deployment.",
-   "severity": "high",
-   "tags": ["redis", "latency", "production"],
-   "case_customer": 1,
-   "case_soc_id": ""
-}
-```
-
-This endpoint creates the incident in IRIS and ingests the resulting normalized `incident_report` into UniOps runtime memory.

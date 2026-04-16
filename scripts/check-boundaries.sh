@@ -47,7 +47,7 @@ fi
 
 # Strict lane: backend systems/production owner
 if [[ "$branch_name" == feat/backend-systems-* ]]; then
-  allowed='^(backend/app/|backend/src/tools/|backend/src/gates/(approval_queue.py|executor.py|__init__.py)$|backend/tests/|infra/|scripts/)'
+  allowed='^(backend/app/|backend/src/tools/|backend/src/adapters/|backend/src/gates/(approval_queue.py|executor.py|__init__.py)$|backend/tests/|infra/|scripts/)'
   illegal="$(contains_disallowed_files "$allowed")"
   print_illegal_and_exit "Systems backend lane contains out-of-lane changes:" "$illegal"
 fi

@@ -1,17 +1,17 @@
-# UniOps - Small OS for Operations
+# hacktofuture4 — D07
 
-Monorepo scaffold for a 24-hour hackathon build with 2 engineers working in parallel.
+Monorepo scaffold for the HackToFuture 4 (D07) build, designed for fast parallel development across frontend and backend.
 
-## Monorepo Structure
+## Repository Structure
 
 ```text
 .
-├── frontend/                # Engineer A ownership
+├── frontend/                # Next.js app
 │   ├── app/
 │   ├── components/
 │   ├── lib/
 │   └── tests/
-├── backend/                 # Engineer B ownership
+├── backend/                 # FastAPI API + orchestration
 │   ├── app/
 │   │   └── api/routes/
 │   ├── src/
@@ -23,7 +23,7 @@ Monorepo scaffold for a 24-hour hackathon build with 2 engineers working in para
 │   └── tests/
 ├── shared/
 │   └── contracts/           # Shared integration boundary
-├── data/
+├── data/                    # Sample/source data
 │   ├── confluence/
 │   ├── runbooks/
 │   ├── incidents/
@@ -33,40 +33,28 @@ Monorepo scaffold for a 24-hour hackathon build with 2 engineers working in para
 │   └── docker-compose.yml
 ├── scripts/
 └── docs/
-	├── UniOps PRD.md
-	└── ways-of-working/
+    ├── UniOps PRD.md
+    └── ways-of-working/
 ```
-
-## Conflict Prevention Model (2 Engineers)
-
-1. Strict ownership boundary:
-   - Engineer A -> `frontend/**`
-   - Engineer B -> `backend/**`
-2. Shared zone (`shared/contracts/**`, `infra/**`, docs) uses short lock-based edits.
-3. Contract-first integration: update shared contract before implementation changes.
-4. Merge cadence: sync every 2 hours, small PRs, no direct commits to `main`.
-
-See:
-- `docs/ways-of-working/OWNERSHIP.md`
-- `docs/ways-of-working/BRANCHING.md`
-- `docs/ways-of-working/INTEGRATION_RULES.md`
-- `docs/ways-of-working/TASK_SPLIT_24H.md`
 
 ## Quick Start
 
-### Option A: Docker Compose
+### Option A: Docker Compose (recommended)
+
+From the repository root:
 
 ```bash
 make up
 ```
 
 - Frontend: http://localhost:3000
-- Backend: http://localhost:8000/health
+- Backend health: http://localhost:8000/health
 - Milvus: localhost:19530
 
-### Option B: Run separately
+### Option B: Run services separately
 
 Frontend:
+
 ```bash
 cd frontend
 npm install
@@ -74,6 +62,7 @@ npm run dev
 ```
 
 Backend:
+
 ```bash
 cd backend
 python -m venv .venv
@@ -85,19 +74,19 @@ uvicorn app.main:app --reload --port 8000
 ## Current MVP Scaffold
 
 - FastAPI app with `/health` and `POST /api/chat`
-- Next.js app shell page
-- Shared chat contract at `shared/contracts/chat.contract.json`
+- Next.js app shell
+- Shared chat contract: `shared/contracts/chat.contract.json`
 - Sample data folders for Confluence, runbooks, incidents, GitHub, and Slack
 
-## Milvus + Vector DB Setup
+## Vector DB (Milvus)
 
-UniOps supports three retrieval modes using `RETRIEVAL_MODE`:
+Retrieval behavior is controlled by `RETRIEVAL_MODE`:
 
 - `keyword`: keyword-only retrieval (no vector indexing)
-- `semantic`: Milvus semantic retrieval only (fallback to keyword when unavailable)
+- `semantic`: Milvus semantic retrieval (falls back to keyword when unavailable)
 - `hybrid`: semantic-first with keyword backfill
 
-Recommended `.env` values:
+Example `.env` values:
 
 ```bash
 RETRIEVAL_MODE=hybrid
@@ -108,29 +97,19 @@ EMBEDDING_PROVIDER=deterministic
 EMBEDDING_MODEL=BAAI/bge-small-en-v1.5
 ```
 
-Use `EMBEDDING_PROVIDER=deterministic` for local/offline development (default),
-`huggingface` for model-based local embeddings, or `openai` for hosted embeddings.
-
 Vector endpoints:
 
-- `GET /api/vector/status`: current vector DB health/index status
-- `POST /api/vector/rebuild`: force reindex of current memory documents into Milvus
+- `GET /api/vector/status`
+- `POST /api/vector/rebuild`
 
-## Next Build Targets
+## Working Agreements (parallel build)
 
-1. Add backend SSE endpoint for live reasoning trace.
-2. Connect frontend chat + trace panel to API contract.
-3. Implement native permission gate approval queue.
-4. Add ingestion pipeline for markdown and simulated incident data.
+- Frontend work stays in `frontend/**`
+- Backend work stays in `backend/**`
+- Shared areas (`shared/**`, `infra/**`, docs) should be changed with extra care to avoid conflicts
 
-## IRIS Data Parity Setup
-
-Use repository source data to bootstrap the same incident-resolution context in IRIS:
-
-```bash
-python3 scripts/iris_setup_from_data.py --project-key SERVICE-X
-```
-
-Then follow:
-
-- `docs/ways-of-working/IRIS_INCIDENT_SETUP.md`
+See:
+- `docs/ways-of-working/OWNERSHIP.md`
+- `docs/ways-of-working/BRANCHING.md`
+- `docs/ways-of-working/INTEGRATION_RULES.md`
+- `docs/ways-of-working/TASK_SPLIT_24H.md`
